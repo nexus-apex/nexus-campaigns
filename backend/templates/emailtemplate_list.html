@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Emailtemplates | NexusCampaigns{% endblock %}
+{% block page_title %}Emailtemplates{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem">
+  <form class="search-bar" method="get" style="flex:1;margin-bottom:0">
+    <input type="text" name="search" value="{{ search }}" placeholder="Search emailtemplates...">
+    <select name="status" onchange="this.form.submit()">
+      <option value="">All Category</option>
+      <option value="welcome" {% if status_filter == 'welcome' %}selected{% endif %}>Welcome</option>
+      <option value="promo" {% if status_filter == 'promo' %}selected{% endif %}>Promo</option>
+      <option value="newsletter" {% if status_filter == 'newsletter' %}selected{% endif %}>Newsletter</option>
+      <option value="alert" {% if status_filter == 'alert' %}selected{% endif %}>Alert</option>
+      <option value="transactional" {% if status_filter == 'transactional' %}selected{% endif %}>Transactional</option>
+    </select>
+    <button type="submit" class="btn btn-primary btn-sm">Search</button>
+  </form>
+  <a href="/emailtemplates/create/" class="btn btn-primary">+ New EmailTemplate</a>
+</div>
+
+<div class="card">
+  {% if records %}
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Subject</th><th>Category</th><th>Active</th><th>Usage Count</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      {% for r in records %}
+      <tr>
+        <td><a href="/emailtemplates/{{ r.pk }}/edit/"><strong>{{ r.name }}</strong></a></td>
+        <td>{{ r.subject|default:"-" }}</td>
+        <td><span class="badge badge-blue">{{ r.get_category_display }}</span></td>
+        <td><span class="badge {{ r.active|yesno:\"badge-green,badge-red\" }}">{{ r.active|yesno:\"Yes,No\" }}</span></td>
+        <td>{{ r.usage_count|default:"-" }}</td>
+        <td class="actions">
+          <a href="/emailtemplates/{{ r.pk }}/edit/" class="btn btn-primary btn-sm">Edit</a>
+          <form method="post" action="/emailtemplates/{{ r.pk }}/delete/" style="display:inline" onsubmit="return confirm('Delete?')">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger btn-sm">Del</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">
+    <p>No emailtemplates found.</p>
+    <a href="/emailtemplates/create/" class="btn btn-primary" style="margin-top:1rem">Create EmailTemplate</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
