@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{% if editing %}Edit{% else %}New{% endif %} EmailTemplate | NexusCampaigns{% endblock %}
+{% block page_title %}{% if editing %}Edit EmailTemplate{% else %}New EmailTemplate{% endif %}{% endblock %}
+{% block content %}
+<div class="card" style="max-width:750px">
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-row">
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" name="name" value="{{ record.name|default:'' }}">
+      </div>
+      <div class="form-group">
+        <label>Subject</label>
+        <input type="text" name="subject" value="{{ record.subject|default:'' }}">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Category</label>
+        <select name="category">
+          <option value="welcome" {% if record.category == 'welcome' %}selected{% endif %}>Welcome</option>
+          <option value="promo" {% if record.category == 'promo' %}selected{% endif %}>Promo</option>
+          <option value="newsletter" {% if record.category == 'newsletter' %}selected{% endif %}>Newsletter</option>
+          <option value="alert" {% if record.category == 'alert' %}selected{% endif %}>Alert</option>
+          <option value="transactional" {% if record.category == 'transactional' %}selected{% endif %}>Transactional</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Content</label>
+      <textarea name="content">{{ record.content|default:'' }}</textarea>
+    </div>
+    <div class="form-group">
+      <div class="checkbox-wrapper">
+        <input type="checkbox" name="active" id="id_active" {% if record.active %}checked{% endif %}>
+        <label for="id_active" style="margin-bottom:0">Active</label>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Usage Count</label>
+        <input type="number" name="usage_count" value="{{ record.usage_count|default:'0' }}">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:0.75rem;margin-top:1rem">
+      <button type="submit" class="btn btn-primary">{% if editing %}Update{% else %}Create{% endif %} EmailTemplate</button>
+      <a href="/emailtemplates/" class="btn" style="background:var(--border);color:var(--text)">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
