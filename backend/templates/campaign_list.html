@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Campaigns | NexusCampaigns{% endblock %}
+{% block page_title %}Campaigns{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem">
+  <form class="search-bar" method="get" style="flex:1;margin-bottom:0">
+    <input type="text" name="search" value="{{ search }}" placeholder="Search campaigns...">
+    <select name="status" onchange="this.form.submit()">
+      <option value="">All Campaign Type</option>
+      <option value="newsletter" {% if status_filter == 'newsletter' %}selected{% endif %}>Newsletter</option>
+      <option value="promotional" {% if status_filter == 'promotional' %}selected{% endif %}>Promotional</option>
+      <option value="drip" {% if status_filter == 'drip' %}selected{% endif %}>Drip</option>
+      <option value="transactional" {% if status_filter == 'transactional' %}selected{% endif %}>Transactional</option>
+    </select>
+    <button type="submit" class="btn btn-primary btn-sm">Search</button>
+  </form>
+  <a href="/campaigns/create/" class="btn btn-primary">+ New Campaign</a>
+</div>
+
+<div class="card">
+  {% if records %}
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Campaign Type</th><th>Status</th><th>Sent Count</th><th>Open Rate</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      {% for r in records %}
+      <tr>
+        <td><a href="/campaigns/{{ r.pk }}/edit/"><strong>{{ r.name }}</strong></a></td>
+        <td><span class="badge badge-blue">{{ r.get_campaign_type_display }}</span></td>
+        <td><span class="badge badge-blue">{{ r.get_status_display }}</span></td>
+        <td>{{ r.sent_count|default:"-" }}</td>
+        <td>{{ r.open_rate|floatformat:2 }}</td>
+        <td class="actions">
+          <a href="/campaigns/{{ r.pk }}/edit/" class="btn btn-primary btn-sm">Edit</a>
+          <form method="post" action="/campaigns/{{ r.pk }}/delete/" style="display:inline" onsubmit="return confirm('Delete?')">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger btn-sm">Del</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">
+    <p>No campaigns found.</p>
+    <a href="/campaigns/create/" class="btn btn-primary" style="margin-top:1rem">Create Campaign</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
