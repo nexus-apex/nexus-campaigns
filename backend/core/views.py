@@ -3,9 +3,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
-from django.conf import settings
-from .models import Record
+from django.db.models import Sum, Count
+from .models import Campaign, Subscriber, EmailTemplate
 
 
 def login_view(request):
@@ -30,67 +29,174 @@ def logout_view(request):
 
 @login_required
 def dashboard_view(request):
-    total = Record.objects.count()
-    active = Record.objects.filter(status='active').count()
-    pending = Record.objects.filter(status='pending').count()
-    inactive = Record.objects.filter(status='inactive').count()
-    recent = Record.objects.all()[:10]
-    return render(request, 'dashboard.html', {
-        'total': total, 'active': active, 'pending': pending,
-        'inactive': inactive, 'recent': recent,
-    })
+    ctx = {}
+    ctx['campaign_count'] = Campaign.objects.count()
+    ctx['campaign_newsletter'] = Campaign.objects.filter(campaign_type='newsletter').count()
+    ctx['campaign_promotional'] = Campaign.objects.filter(campaign_type='promotional').count()
+    ctx['campaign_drip'] = Campaign.objects.filter(campaign_type='drip').count()
+    ctx['campaign_total_open_rate'] = Campaign.objects.aggregate(t=Sum('open_rate'))['t'] or 0
+    ctx['subscriber_count'] = Subscriber.objects.count()
+    ctx['subscriber_active'] = Subscriber.objects.filter(status='active').count()
+    ctx['subscriber_unsubscribed'] = Subscriber.objects.filter(status='unsubscribed').count()
+    ctx['subscriber_bounced'] = Subscriber.objects.filter(status='bounced').count()
+    ctx['emailtemplate_count'] = EmailTemplate.objects.count()
+    ctx['emailtemplate_welcome'] = EmailTemplate.objects.filter(category='welcome').count()
+    ctx['emailtemplate_promo'] = EmailTemplate.objects.filter(category='promo').count()
+    ctx['emailtemplate_newsletter'] = EmailTemplate.objects.filter(category='newsletter').count()
+    ctx['recent'] = Campaign.objects.all()[:10]
+    return render(request, 'dashboard.html', ctx)
 
 
 @login_required
-def records_view(request):
-    records = Record.objects.all()
-    status_filter = request.GET.get('status', '')
+def campaign_list(request):
+    qs = Campaign.objects.all()
     search = request.GET.get('search', '')
-    if status_filter:
-        records = records.filter(status=status_filter)
     if search:
-        records = records.filter(name__icontains=search)
-    return render(request, 'records.html', {'records': records, 'status_filter': status_filter, 'search': search})
+        qs = qs.filter(name__icontains=search)
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        qs = qs.filter(campaign_type=status_filter)
+    return render(request, 'campaign_list.html', {'records': qs, 'search': search, 'status_filter': status_filter})
 
 
 @login_required
-def record_create(request):
+def campaign_create(request):
     if request.method == 'POST':
-        Record.objects.create(
-            name=request.POST.get('name', ''),
-            description=request.POST.get('description', ''),
-            status=request.POST.get('status', 'active'),
-            email=request.POST.get('email', ''),
-            phone=request.POST.get('phone', ''),
-            amount=request.POST.get('amount', 0) or 0,
-            notes=request.POST.get('notes', ''),
-        )
-        return redirect('/records/')
-    return render(request, 'record_form.html', {'editing': False})
+        obj = Campaign()
+        obj.name = request.POST.get('name', '')
+        obj.campaign_type = request.POST.get('campaign_type', '')
+        obj.status = request.POST.get('status', '')
+        obj.sent_count = request.POST.get('sent_count') or 0
+        obj.open_rate = request.POST.get('open_rate') or 0
+        obj.click_rate = request.POST.get('click_rate') or 0
+        obj.scheduled_date = request.POST.get('scheduled_date') or None
+        obj.save()
+        return redirect('/campaigns/')
+    return render(request, 'campaign_form.html', {'editing': False})
 
 
 @login_required
-def record_edit(request, pk):
-    record = get_object_or_404(Record, pk=pk)
+def campaign_edit(request, pk):
+    obj = get_object_or_404(Campaign, pk=pk)
     if request.method == 'POST':
-        record.name = request.POST.get('name', record.name)
-        record.description = request.POST.get('description', record.description)
-        record.status = request.POST.get('status', record.status)
-        record.email = request.POST.get('email', record.email)
-        record.phone = request.POST.get('phone', record.phone)
-        record.amount = request.POST.get('amount', record.amount) or 0
-        record.notes = request.POST.get('notes', record.notes)
-        record.save()
-        return redirect('/records/')
-    return render(request, 'record_form.html', {'record': record, 'editing': True})
+        obj.name = request.POST.get('name', '')
+        obj.campaign_type = request.POST.get('campaign_type', '')
+        obj.status = request.POST.get('status', '')
+        obj.sent_count = request.POST.get('sent_count') or 0
+        obj.open_rate = request.POST.get('open_rate') or 0
+        obj.click_rate = request.POST.get('click_rate') or 0
+        obj.scheduled_date = request.POST.get('scheduled_date') or None
+        obj.save()
+        return redirect('/campaigns/')
+    return render(request, 'campaign_form.html', {'record': obj, 'editing': True})
 
 
 @login_required
-def record_delete(request, pk):
-    record = get_object_or_404(Record, pk=pk)
+def campaign_delete(request, pk):
+    obj = get_object_or_404(Campaign, pk=pk)
     if request.method == 'POST':
-        record.delete()
-    return redirect('/records/')
+        obj.delete()
+    return redirect('/campaigns/')
+
+
+@login_required
+def subscriber_list(request):
+    qs = Subscriber.objects.all()
+    search = request.GET.get('search', '')
+    if search:
+        qs = qs.filter(email__icontains=search)
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        qs = qs.filter(status=status_filter)
+    return render(request, 'subscriber_list.html', {'records': qs, 'search': search, 'status_filter': status_filter})
+
+
+@login_required
+def subscriber_create(request):
+    if request.method == 'POST':
+        obj = Subscriber()
+        obj.email = request.POST.get('email', '')
+        obj.name = request.POST.get('name', '')
+        obj.status = request.POST.get('status', '')
+        obj.list_name = request.POST.get('list_name', '')
+        obj.subscribed_date = request.POST.get('subscribed_date') or None
+        obj.tags = request.POST.get('tags', '')
+        obj.save()
+        return redirect('/subscribers/')
+    return render(request, 'subscriber_form.html', {'editing': False})
+
+
+@login_required
+def subscriber_edit(request, pk):
+    obj = get_object_or_404(Subscriber, pk=pk)
+    if request.method == 'POST':
+        obj.email = request.POST.get('email', '')
+        obj.name = request.POST.get('name', '')
+        obj.status = request.POST.get('status', '')
+        obj.list_name = request.POST.get('list_name', '')
+        obj.subscribed_date = request.POST.get('subscribed_date') or None
+        obj.tags = request.POST.get('tags', '')
+        obj.save()
+        return redirect('/subscribers/')
+    return render(request, 'subscriber_form.html', {'record': obj, 'editing': True})
+
+
+@login_required
+def subscriber_delete(request, pk):
+    obj = get_object_or_404(Subscriber, pk=pk)
+    if request.method == 'POST':
+        obj.delete()
+    return redirect('/subscribers/')
+
+
+@login_required
+def emailtemplate_list(request):
+    qs = EmailTemplate.objects.all()
+    search = request.GET.get('search', '')
+    if search:
+        qs = qs.filter(name__icontains=search)
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        qs = qs.filter(category=status_filter)
+    return render(request, 'emailtemplate_list.html', {'records': qs, 'search': search, 'status_filter': status_filter})
+
+
+@login_required
+def emailtemplate_create(request):
+    if request.method == 'POST':
+        obj = EmailTemplate()
+        obj.name = request.POST.get('name', '')
+        obj.subject = request.POST.get('subject', '')
+        obj.category = request.POST.get('category', '')
+        obj.content = request.POST.get('content', '')
+        obj.active = request.POST.get('active') == 'on'
+        obj.usage_count = request.POST.get('usage_count') or 0
+        obj.save()
+        return redirect('/emailtemplates/')
+    return render(request, 'emailtemplate_form.html', {'editing': False})
+
+
+@login_required
+def emailtemplate_edit(request, pk):
+    obj = get_object_or_404(EmailTemplate, pk=pk)
+    if request.method == 'POST':
+        obj.name = request.POST.get('name', '')
+        obj.subject = request.POST.get('subject', '')
+        obj.category = request.POST.get('category', '')
+        obj.content = request.POST.get('content', '')
+        obj.active = request.POST.get('active') == 'on'
+        obj.usage_count = request.POST.get('usage_count') or 0
+        obj.save()
+        return redirect('/emailtemplates/')
+    return render(request, 'emailtemplate_form.html', {'record': obj, 'editing': True})
+
+
+@login_required
+def emailtemplate_delete(request, pk):
+    obj = get_object_or_404(EmailTemplate, pk=pk)
+    if request.method == 'POST':
+        obj.delete()
+    return redirect('/emailtemplates/')
 
 
 @login_required
@@ -98,12 +204,10 @@ def settings_view(request):
     return render(request, 'settings.html')
 
 
-# API endpoints
 @login_required
 def api_stats(request):
-    return JsonResponse({
-        'total': Record.objects.count(),
-        'active': Record.objects.filter(status='active').count(),
-        'pending': Record.objects.filter(status='pending').count(),
-        'inactive': Record.objects.filter(status='inactive').count(),
-    })
+    data = {}
+    data['campaign_count'] = Campaign.objects.count()
+    data['subscriber_count'] = Subscriber.objects.count()
+    data['emailtemplate_count'] = EmailTemplate.objects.count()
+    return JsonResponse(data)
