@@ -30,7 +30,7 @@
         <td><a href="/emailtemplates/{{ r.pk }}/edit/"><strong>{{ r.name }}</strong></a></td>
         <td>{{ r.subject|default:"-" }}</td>
         <td><span class="badge badge-blue">{{ r.get_category_display }}</span></td>
-        <td><span class="badge {{ r.active|yesno:\"badge-green,badge-red\" }}">{{ r.active|yesno:\"Yes,No\" }}</span></td>
+        <td><span class="badge {{ r.active|yesno:"badge-green,badge-red" }}">{{ r.active|yesno:"Yes,No" }}</span></td>
         <td>{{ r.usage_count|default:"-" }}</td>
         <td class="actions">
           <a href="/emailtemplates/{{ r.pk }}/edit/" class="btn btn-primary btn-sm">Edit</a>
